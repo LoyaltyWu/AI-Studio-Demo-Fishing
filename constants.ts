@@ -1,3 +1,4 @@
+
 import { FishTemplate, Rarity, Rod } from './types';
 
 export const FISH_TEMPLATES: FishTemplate[] = [

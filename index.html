@@ -7,51 +7,17 @@
     <title>Zen Fishing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @keyframes ripple {
-            0% { transform: scale(0.5); opacity: 1; }
-            100% { transform: scale(2.5); opacity: 0; }
-        }
-        .ripple {
-            position: absolute;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: ripple 2s infinite;
-        }
-        .fish-struggle {
-            animation: struggle 0.3s infinite alternate;
-        }
-        @keyframes struggle {
-            from { transform: translateX(-2px); }
-            to { transform: translateX(2px); }
-        }
-        body {
-            overscroll-behavior: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .legendary-glow {
-            box-shadow: 0 0 15px #fbbf24;
-            border: 2px solid #fbbf24;
-        }
-        .epic-glow {
-            box-shadow: 0 0 15px #a855f7;
-            border: 2px solid #a855f7;
-        }
-        .rare-glow {
-            box-shadow: 0 0 15px #3b82f6;
-            border: 2px solid #3b82f6;
-        }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
-  }
-}
-</script>
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "react": "https://esm.sh/react@^19.2.4"
+      }
+    }
+    </script>
+    <script type="module" src="index.tsx"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans overflow-hidden">
     <div id="root"></div>
