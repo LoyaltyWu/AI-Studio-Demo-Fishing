@@ -25,14 +25,23 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   // Failure tracking
   const failProgress = useRef(0); 
 
-  // Physics Constants - Adjusted for "less drifty" feel
-  const GRAVITY = 0.15;
-  const LIFT = 0.35;
-  const DAMPING = 0.96; // Adds friction to prevent infinite sliding
-  const BOUNCE = 0.4;   // Velocity retention when hitting floor/ceiling
+  // Simple runtime check for mobile-ish devices
+  const isMobileDevice =
+    typeof navigator !== 'undefined' &&
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+      navigator.userAgent,
+    );
+
+  // Physics Constants - tuned separately for desktop vs mobile
+  const GRAVITY = isMobileDevice ? 0.1 : 0.15;
+  const LIFT = isMobileDevice ? 0.22 : 0.35;
+  const DAMPING = isMobileDevice ? 0.9 : 0.96; // stronger damping on mobile to avoid overshoot
+  const BOUNCE = isMobileDevice ? 0.15 : 0.4; // softer bounce on mobile
 
   const update = useCallback((time: number) => {
-    const dt = (time - lastTime.current) / 16;
+    // Normalize delta time to ~60fps units and clamp to avoid huge jumps on low FPS (common on mobile)
+    let dt = (time - lastTime.current) / 16;
+    dt = Math.min(dt, 1.5);
     lastTime.current = time;
 
     // 1. Update Player Bar Physics
