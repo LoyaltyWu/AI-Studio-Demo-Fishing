@@ -21,6 +21,8 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   const fishTarget = useRef(30);
   const lastTime = useRef(performance.now());
   const animationFrame = useRef<number>(0);
+  const isPressingRef = useRef(isPressing);
+  isPressingRef.current = isPressing; // so game loop always sees current value (avoids stale closure on touch)
   
   // Failure tracking
   const failProgress = useRef(0);
@@ -45,15 +47,20 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     isMobile: boolean;
   } | null>(null); 
 
-  // Simple runtime check for mobile-ish devices
+  // Runtime mobile/touch detection: UA regex OR touch capability (so real phones
+  // are detected even when UA is spoofed or "Desktop site" is on). Ref so the
+  // game loop always sees the current value (avoids stale closure on first paint).
   const isMobileDevice =
-    typeof navigator !== 'undefined' &&
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
-      navigator.userAgent,
-    );
+    (typeof navigator !== 'undefined' &&
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+        navigator.userAgent,
+      )) ||
+    (typeof window !== 'undefined' &&
+      ('ontouchstart' in window || (navigator.maxTouchPoints != null && navigator.maxTouchPoints > 0)));
+  const isMobileRef = useRef(isMobileDevice);
+  isMobileRef.current = isMobileDevice;
 
   // Physics Constants - tuned separately for desktop vs mobile
-  // Mobile: slightly lower gravity, stronger lift, lighter damping, softer bounce
   const GRAVITY = isMobileDevice ? 0.08 : 0.15;
   const LIFT = isMobileDevice ? 0.32 : 0.35;
   const DAMPING = isMobileDevice ? 0.97 : 0.96;
@@ -62,13 +69,13 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   const update = useCallback((time: number) => {
     // Normalize delta time to ~60fps units and clamp only extreme spikes
     let dt = (time - lastTime.current) / 16;
-    const maxDt = isMobileDevice ? 3 : 2; // allow up to ~3 frames worth on mobile (e.g. 30fps) to avoid "heavy" feel
+    const maxDt = isMobileRef.current ? 3 : 2; // allow up to ~3 frames worth on mobile (e.g. 30fps) to avoid "heavy" feel
     if (dt > maxDt) dt = maxDt;
     lastTime.current = time;
     debugRef.current.dt = dt;
 
-    // 1. Update Player Bar Physics
-    if (isPressing) {
+    // 1. Update Player Bar Physics (use ref so touch state is never stale in rAF)
+    if (isPressingRef.current) {
       barVel.current += LIFT * dt;
     } else {
       barVel.current -= GRAVITY * dt;
@@ -94,8 +101,8 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
       return next;
     });
 
-    // 2. Update Fish AI
-    if (Math.abs(fishPos - fishTarget.current) < 2) {
+    // 2. Update Fish AI (use ref for position just updated this frame)
+    if (Math.abs(debugRef.current.fishPos - fishTarget.current) < 2) {
       const struggleFreq = Math.max(0.01, 0.04 - (rod.id * 0.005)); 
       if (Math.random() < struggleFreq) {
         fishTarget.current = Math.random() * 85 + 7;
@@ -116,9 +123,9 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
       return next;
     });
 
-    // 3. Update Catch Progress
+    // 3. Update Catch Progress (use refs for positions just updated this frame)
     const barHeightPct = (rod.barLength / 400) * 100;
-    const isInside = Math.abs(fishPos - barPos) <= (barHeightPct / 2 + (rod.tolerance / 400 * 100));
+    const isInside = Math.abs(debugRef.current.fishPos - debugRef.current.barPos) <= (barHeightPct / 2 + (rod.tolerance / 400 * 100));
 
     setProgress(prev => {
       const increment = (isInside ? 0.6 : -0.8) * dt;
@@ -165,14 +172,14 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
         fishPos: debugRef.current.fishPos,
         barVel: debugRef.current.barVel,
         fishVel: debugRef.current.fishVel,
-        isMobile: isMobileDevice,
+        isMobile: isMobileRef.current,
       });
       frameCountRef.current = 0;
       lastFpsTimeRef.current = time;
     }
 
     animationFrame.current = requestAnimationFrame(update);
-  }, [isPressing, rod, fish, fishPos, barPos, onSuccess, onFail]);
+  }, [rod, fish, onSuccess, onFail]);
 
   useEffect(() => {
     animationFrame.current = requestAnimationFrame(update);
