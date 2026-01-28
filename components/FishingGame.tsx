@@ -213,6 +213,25 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
           {/* Subtle water texture overlay */}
           <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
 
+          {/* Position scale markers every ~50 units (0, 50, 100) */}
+          <div className="absolute inset-x-0 inset-y-0 pointer-events-none text-[9px] font-mono text-slate-300/70">
+            {/* 100 (top) */}
+            <div className="absolute top-1 left-0 right-0 flex items-center">
+              <div className="flex-1 h-px bg-slate-500/60"></div>
+              <span className="ml-1">100</span>
+            </div>
+            {/* 50 (middle) */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex items-center">
+              <div className="flex-1 h-px bg-slate-500/40"></div>
+              <span className="ml-1">50</span>
+            </div>
+            {/* 0 (bottom) */}
+            <div className="absolute bottom-1 left-0 right-0 flex items-center">
+              <div className="flex-1 h-px bg-slate-500/60"></div>
+              <span className="ml-1">0</span>
+            </div>
+          </div>
+
           {/* Player Bar */}
           <div 
             className={`absolute left-0 w-full rounded-md border-y-4 border-white/40 transition-all duration-75 ${rod.style} opacity-80`}
