@@ -23,7 +23,27 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   const animationFrame = useRef<number>(0);
   
   // Failure tracking
-  const failProgress = useRef(0); 
+  const failProgress = useRef(0);
+
+  // Reeling debug overlay: FPS + physics (updated every ~200ms from game loop)
+  const frameCountRef = useRef(0);
+  const lastFpsTimeRef = useRef(performance.now());
+  const debugRef = useRef<{ dt: number; barVel: number; fishVel: number; barPos: number; fishPos: number }>({
+    dt: 0, barVel: 0, fishVel: 0, barPos: 0, fishPos: 0,
+  });
+  const [debugSnapshot, setDebugSnapshot] = useState<{
+    fps: number;
+    dt: number;
+    gravity: number;
+    lift: number;
+    damping: number;
+    bounce: number;
+    barPos: number;
+    fishPos: number;
+    barVel: number;
+    fishVel: number;
+    isMobile: boolean;
+  } | null>(null); 
 
   // Simple runtime check for mobile-ish devices
   const isMobileDevice =
@@ -45,6 +65,7 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     const maxDt = isMobileDevice ? 3 : 2; // allow up to ~3 frames worth on mobile (e.g. 30fps) to avoid "heavy" feel
     if (dt > maxDt) dt = maxDt;
     lastTime.current = time;
+    debugRef.current.dt = dt;
 
     // 1. Update Player Bar Physics
     if (isPressing) {
@@ -55,6 +76,7 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     
     // Apply damping
     barVel.current *= DAMPING;
+    debugRef.current.barVel = barVel.current;
 
     setBarPos(prev => {
       let next = prev + barVel.current * dt;
@@ -68,6 +90,7 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
         next = 100;
         barVel.current = -Math.abs(barVel.current) * BOUNCE; // Slight bounce down
       }
+      debugRef.current.barPos = next;
       return next;
     });
 
@@ -85,9 +108,12 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     
     fishVel.current *= 0.92; // Damping for fish
 
+    debugRef.current.fishVel = fishVel.current;
     setFishPos(prev => {
       let next = prev + fishVel.current * dt;
-      return Math.max(5, Math.min(95, next));
+      next = Math.max(5, Math.min(95, next));
+      debugRef.current.fishPos = next;
+      return next;
     });
 
     // 3. Update Catch Progress
@@ -122,6 +148,28 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
       
       return next;
     });
+
+    // Debug overlay: every ~200ms update FPS + physics snapshot
+    frameCountRef.current += 1;
+    const elapsed = time - lastFpsTimeRef.current;
+    if (elapsed >= 200) {
+      const fps = Math.round((frameCountRef.current * 1000) / elapsed);
+      setDebugSnapshot({
+        fps,
+        dt: debugRef.current.dt,
+        gravity: GRAVITY,
+        lift: LIFT,
+        damping: DAMPING,
+        bounce: BOUNCE,
+        barPos: debugRef.current.barPos,
+        fishPos: debugRef.current.fishPos,
+        barVel: debugRef.current.barVel,
+        fishVel: debugRef.current.fishVel,
+        isMobile: isMobileDevice,
+      });
+      frameCountRef.current = 0;
+      lastFpsTimeRef.current = time;
+    }
 
     animationFrame.current = requestAnimationFrame(update);
   }, [isPressing, rod, fish, fishPos, barPos, onSuccess, onFail]);
@@ -197,6 +245,37 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
           {isPressing ? 'Applying Tension' : 'Releasing Tension'}
         </p>
       </div>
+
+      {/* Reeling debug overlay: FPS, physics constants, positions & velocities */}
+      {debugSnapshot && (
+        <div className="absolute top-4 left-4 right-4 max-w-xs bg-black/85 border border-slate-600 rounded-lg p-3 font-mono text-[10px] text-slate-300 pointer-events-none z-50">
+          <div className="font-bold text-cyan-400 mb-1">Reeling Debug</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+            <span>FPS</span>
+            <span className="text-white">{debugSnapshot.fps}</span>
+            <span>dt</span>
+            <span className="text-white">{debugSnapshot.dt.toFixed(3)}</span>
+            <span>isMobile</span>
+            <span className="text-white">{debugSnapshot.isMobile ? 'yes' : 'no'}</span>
+            <span>GRAVITY</span>
+            <span className="text-white">{debugSnapshot.gravity}</span>
+            <span>LIFT</span>
+            <span className="text-white">{debugSnapshot.lift}</span>
+            <span>DAMPING</span>
+            <span className="text-white">{debugSnapshot.damping}</span>
+            <span>BOUNCE</span>
+            <span className="text-white">{debugSnapshot.bounce}</span>
+            <span>barPos</span>
+            <span className="text-white">{debugSnapshot.barPos.toFixed(1)}</span>
+            <span>fishPos</span>
+            <span className="text-white">{debugSnapshot.fishPos.toFixed(1)}</span>
+            <span>barVel</span>
+            <span className="text-white">{debugSnapshot.barVel.toFixed(3)}</span>
+            <span>fishVel</span>
+            <span className="text-white">{debugSnapshot.fishVel.toFixed(3)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
