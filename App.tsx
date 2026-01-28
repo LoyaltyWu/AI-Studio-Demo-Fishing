@@ -378,7 +378,7 @@ const App: React.FC = () => {
       )}
 
       <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none opacity-40">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">Zen Fishing Mobile v1.5</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">Zen Fishing Mobile v1.4</p>
       </div>
     </div>
   );
