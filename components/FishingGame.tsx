@@ -22,6 +22,11 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   const lastTime = useRef(performance.now());
   const animationFrame = useRef<number>(0);
   
+  // Touch/pointer tracking for direct position control
+  const touchTargetPos = useRef<number | null>(null); // Target position from touch (0-100)
+  const fishingAreaRef = useRef<HTMLDivElement>(null);
+  const barPosRef = useRef(0); // Keep current barPos in ref for update loop
+  
   // Failure tracking
   const failProgress = useRef(0);
 
@@ -59,6 +64,17 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
   const DAMPING = isMobileDevice ? 0.97 : 0.96;
   const BOUNCE = isMobileDevice ? 0.2 : 0.4;
 
+  // Convert pointer Y position to bar position (0-100, where 0 is bottom, 100 is top)
+  const pointerYToBarPos = useCallback((clientY: number): number => {
+    if (!fishingAreaRef.current) return barPosRef.current;
+    const rect = fishingAreaRef.current.getBoundingClientRect();
+    const relativeY = clientY - rect.top;
+    const height = rect.height;
+    // Invert: top of area (y=0) = 100, bottom (y=height) = 0
+    const pos = 100 - (relativeY / height) * 100;
+    return Math.max(0, Math.min(100, pos));
+  }, []);
+
   const update = useCallback((time: number) => {
     // Normalize delta time to ~60fps units and clamp only extreme spikes
     let dt = (time - lastTime.current) / 16;
@@ -67,32 +83,54 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     lastTime.current = time;
     debugRef.current.dt = dt;
 
-    // 1. Update Player Bar Physics
-    if (isPressing) {
-      barVel.current += LIFT * dt;
-    } else {
-      barVel.current -= GRAVITY * dt;
-    }
-    
-    // Apply damping
-    barVel.current *= DAMPING;
-    debugRef.current.barVel = barVel.current;
-
-    setBarPos(prev => {
-      let next = prev + barVel.current * dt;
+    // 1. Update Player Bar Physics - NEW: Direct touch following
+    if (isPressing && touchTargetPos.current !== null) {
+      // Touch mode: smoothly follow touch position
+      const target = touchTargetPos.current;
+      const current = barPosRef.current;
+      const diff = target - current;
+      const followSpeed = isMobileDevice ? 0.3 : 0.4; // How fast to follow (0-1 per frame, higher = faster)
+      const moveAmount = diff * followSpeed * dt;
+      barVel.current = moveAmount / dt; // Store velocity for debug
       
-      // Boundaries with bounce
-      if (next <= 0) {
-        next = 0;
-        barVel.current = Math.abs(barVel.current) * BOUNCE; // Slight bounce up
+      setBarPos(prev => {
+        let next = prev + moveAmount;
+        next = Math.max(0, Math.min(100, next));
+        barPosRef.current = next; // Sync ref
+        debugRef.current.barPos = next;
+        return next;
+      });
+      debugRef.current.barVel = barVel.current;
+    } else {
+      // Free-fall mode: physics-based movement (when not touching)
+      if (isPressing) {
+        // Fallback: old physics if touchTargetPos is null
+        barVel.current += LIFT * dt;
+      } else {
+        barVel.current -= GRAVITY * dt;
       }
-      if (next >= 100) {
-        next = 100;
-        barVel.current = -Math.abs(barVel.current) * BOUNCE; // Slight bounce down
-      }
-      debugRef.current.barPos = next;
-      return next;
-    });
+      
+      // Apply damping
+      barVel.current *= DAMPING;
+      debugRef.current.barVel = barVel.current;
+
+      setBarPos(prev => {
+        let next = prev + barVel.current * dt;
+        
+        // Boundaries with bounce
+        if (next <= 0) {
+          next = 0;
+          barVel.current = Math.abs(barVel.current) * BOUNCE;
+        }
+        if (next >= 100) {
+          next = 100;
+          barVel.current = -Math.abs(barVel.current) * BOUNCE;
+        }
+        barPosRef.current = next; // Sync ref
+        debugRef.current.barPos = next;
+        return next;
+      });
+    }
 
     // 2. Update Fish AI
     if (Math.abs(fishPos - fishTarget.current) < 2) {
@@ -174,20 +212,51 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
     animationFrame.current = requestAnimationFrame(update);
   }, [isPressing, rod, fish, fishPos, barPos, onSuccess, onFail]);
 
+  // Sync barPosRef with state on mount and when barPos changes externally
+  useEffect(() => {
+    barPosRef.current = barPos;
+  }, [barPos]);
+
   useEffect(() => {
     animationFrame.current = requestAnimationFrame(update);
     return () => cancelAnimationFrame(animationFrame.current!);
   }, [update]);
 
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    setIsPressing(true);
+    // Capture pointer for consistent tracking
+    e.currentTarget.setPointerCapture(e.pointerId);
+    // Set initial target position from touch
+    const targetPos = pointerYToBarPos(e.clientY);
+    touchTargetPos.current = targetPos;
+  }, [pointerYToBarPos]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isPressing) return;
+    // Update target position as pointer moves
+    const targetPos = pointerYToBarPos(e.clientY);
+    touchTargetPos.current = targetPos;
+  }, [isPressing, pointerYToBarPos]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsPressing(false);
+    touchTargetPos.current = null;
+  }, []);
+
+  const handlePointerCancel = useCallback(() => {
+    setIsPressing(false);
+    touchTargetPos.current = null;
+  }, []);
+
   return (
     <div 
       className="fixed inset-0 bg-black/70 z-40 flex flex-col items-center justify-center select-none touch-none"
-      onPointerDown={(e) => { 
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        setIsPressing(true); 
-      }}
-      onPointerUp={() => setIsPressing(false)}
-      onPointerLeave={() => setIsPressing(false)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerUp}
     >
       <div className="text-center mb-8">
         <h3 className={`text-2xl font-black italic mb-1 transition-colors ${isStressed ? 'text-red-500 animate-bounce' : 'text-yellow-400'}`}>
@@ -209,7 +278,10 @@ export const FishingGame: React.FC<FishingGameProps> = ({ rod, fish, onSuccess, 
         </div>
 
         {/* Fishing Area */}
-        <div className="relative w-20 h-[400px] bg-slate-800 rounded-xl border-4 border-slate-700 overflow-hidden shadow-2xl">
+        <div 
+          ref={fishingAreaRef}
+          className="relative w-20 h-[400px] bg-slate-800 rounded-xl border-4 border-slate-700 overflow-hidden shadow-2xl"
+        >
           {/* Subtle water texture overlay */}
           <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
 
