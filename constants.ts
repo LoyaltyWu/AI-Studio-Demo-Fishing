@@ -1,4 +1,3 @@
-
 import { FishTemplate, Rarity, Rod } from './types';
 
 export const FISH_TEMPLATES: FishTemplate[] = [
@@ -21,8 +20,8 @@ export const RODS: Rod[] = [
     id: 0, 
     name: 'Bamboo Rod', 
     price: 0, 
-    barLength: 50, 
-    tolerance: 5, 
+    barLength: 100, 
+    tolerance: 10,
     rarityBonus: 0, 
     lengthBonus: 0, 
     style: 'bg-amber-800', 
@@ -32,8 +31,8 @@ export const RODS: Rod[] = [
     id: 1, 
     name: 'Fiberglass Rod', 
     price: 1800, 
-    barLength: 80, 
-    tolerance: 8, 
+    barLength: 145, 
+    tolerance: 15,
     rarityBonus: 0.1, 
     lengthBonus: 0.1, 
     style: 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]', 
@@ -43,8 +42,8 @@ export const RODS: Rod[] = [
     id: 2, 
     name: 'Carbon Fiber Rod', 
     price: 4500, 
-    barLength: 130, 
-    tolerance: 12, 
+    barLength: 190, 
+    tolerance: 20,
     rarityBonus: 0.25, 
     lengthBonus: 0.2, 
     style: 'bg-slate-800 border-b-2 border-blue-400', 
@@ -54,8 +53,8 @@ export const RODS: Rod[] = [
     id: 3, 
     name: 'Iridium Rod', 
     price: 9000, 
-    barLength: 190, 
-    tolerance: 18, 
+    barLength: 240, 
+    tolerance: 25,
     rarityBonus: 0.4, 
     lengthBonus: 0.3, 
     style: 'bg-gradient-to-r from-purple-400 via-indigo-500 to-purple-400 animate-pulse', 
